@@ -1,0 +1,143 @@
+Program.Sub.ScreenSU.Start
+Gui.Form..Create
+Gui.Form..Caption("Tax ID")
+Gui.Form..Size(7170,1950)
+Gui.Form..MinX(0)
+Gui.Form..MinY(0)
+Gui.Form..Position(0,0)
+Gui.Form..BackColor(-2147483633)
+Gui.Form..MousePointer(0)
+Gui.Form..Event(UnLoad,Form_UnLoad)
+Gui.Form.lbl1.Create(Label,"TAX ID",True,915,255,0,105,120,True,0,"Arial",8,-2147483633,0)
+Gui.Form.txtTAX.Create(TextBox,"",True,6675,300,0,105,345,True,0,"Arial",8,-2147483643,1)
+Gui.Form.txtTAX.MaxLength(50)
+Gui.Form.lbl2.Create(Label,"2 Digit Code",True,1470,255,0,105,795,True,0,"Arial",8,-2147483633,0)
+Gui.Form.txtDigit.Create(TextBox,"",True,900,300,0,105,1020,True,0,"Arial",8,-2147483643,1)
+Gui.Form.txtDigit.MaxLength(2)
+Gui.Form.txtDigit.NumericOnly(2)
+Gui.Form.cmdSave.Create(Button)
+Gui.Form.cmdSave.Size(855,375)
+Gui.Form.cmdSave.Position(4770,750)
+Gui.Form.cmdSave.Caption("Save")
+Gui.Form.cmdSave.Event(Click,cmdSave_Click)
+Program.Sub.ScreenSU.End
+
+Program.Sub.Preflight.Start
+V.Global..BulkDeclareString(sType, sCV)
+V.Global.bUP.Declare(Boolean, False)
+Program.Sub.Preflight.End
+
+Program.Sub.Main.Start
+F.Intrinsic.Control.SetErrorHandler("Main_Err")
+F.Intrinsic.Control.ClearErrors
+V.Local.sError.Declare(String)
+'DRH 2/2/2018 Cartoplastic, S.A.
+'this custom Project allows for a 50 Character and 2 Digit Check Digit to be saved for the TAX ID. for Vendors and Customers.
+'Hooks: 14360- script 1 in customer master, 14480- script 1 in vendor master, 14350 and 14460 populate hooks in customer and vendor masters
+V.Local..BulkDeclareString(sIcon)
+F.ODBC.Connection!con.OpenConnection(V.Ambient.PDSN,V.Ambient.PUser,V.Ambient.PPass)
+F.Intrinsic.String.Build("{0}\GAB\GAS\gss2.ico",V.Caller.PluginsDir,v.Local.sIcon)
+Gui.Form..Icon(V.Local.sIcon)
+
+F.Intrinsic.Control.If(V.Caller.Hook, =, 14360 )
+	V.Global.sType.Set("C")
+	V.Global.sCV.Set( V.Passed.000002)
+	F.Intrinsic.Control.CallSub(Query)
+F.Intrinsic.Control.ElseIf(V.Caller.Hook, =, 14480)
+	V.Global.sType.Set("V")
+	V.Global.sCV.Set( V.Passed.000002)
+	F.Intrinsic.Control.CallSub(Query)
+F.Intrinsic.Control.ElseIf(V.Caller.Hook, =, 14350)
+	V.Passed.000201.Set("Tax ID")
+F.Intrinsic.Control.ElseIf(V.Caller.Hook, =, 14460)
+	V.Passed.000022.Set("Tax ID")
+F.Intrinsic.Control.Else
+	F.Intrinsic.Control.End
+
+F.Intrinsic.Control.EndIf
+
+F.Intrinsic.Control.ExitSub
+F.Intrinsic.Control.Label("Main_Err")
+F.Intrinsic.Control.If(V.Ambient.ErrorNumber,<>,0)
+	Function.Intrinsic.String.Concat("Project: GCG_4875_TAX_ID.g2u",V.Ambient.Newline,V.Ambient.Newline,"Subroutine: ",V.Ambient.CurrentSubroutine,V.Ambient.NewLine,"Error Occurred ",V.Ambient.ErrorNumber," with description ",V.Ambient.ErrorDescription,V.Local.sError)
+	F.Intrinsic.UI.Msgbox(V.Local.sError)
+	Function.Intrinsic.Control.CallSub(form_unload)
+Function.Intrinsic.Control.EndIf
+Program.Sub.Main.End
+
+Program.Sub.Query.Start
+F.Intrinsic.Control.SetErrorHandler("Query_Err")
+F.Intrinsic.Control.ClearErrors
+V.Local.sError.Declare(String)
+
+V.Local..BulkDeclareString(ssql, sRet)
+F.Intrinsic.String.Build("Select CV_DIGIT, CV_TAX_ID From GCG_4875_TAX_ID Where CV_TYPE = '{0}' And CV_ID = '{1}'", V.Global.sType, V.Global.sCV, V.Local.ssql)
+F.ODBC.Connection!con.ExecuteAndReturn(V.Local.ssql, V.Local.sRet)
+'set boolean if returns for update or insert
+F.Intrinsic.Control.If(V.Local.sRet, <>, "")
+	F.Intrinsic.String.Split(V.Local.sRet, "*!*", V.Local.sRet)
+	GUI.Form.txtDigit.Text(V.Local.sRet(0))
+	GUI.Form.txtTAX.Text(V.Local.sRet(1))
+	V.Global.bUP.Set(True)
+F.Intrinsic.Control.EndIf
+GUI.Form..Show
+
+F.Intrinsic.Control.ExitSub
+F.Intrinsic.Control.Label("Query_Err")
+F.Intrinsic.Control.If(V.Ambient.ErrorNumber,<>,0)
+	Function.Intrinsic.String.Concat("Project: GCG_4875_TAX_ID.g2u",V.Ambient.Newline,V.Ambient.Newline,"Subroutine: ",V.Ambient.CurrentSubroutine,V.Ambient.NewLine,"Error Occurred ",V.Ambient.ErrorNumber," with description ",V.Ambient.ErrorDescription,V.Local.sError)
+	F.Intrinsic.UI.Msgbox(V.Local.sError)
+	Function.Intrinsic.Control.CallSub(form_unload)
+Function.Intrinsic.Control.EndIf
+Program.Sub.Query.End
+
+Program.Sub.cmdSave_Click.Start
+F.Intrinsic.Control.SetErrorHandler("cmdSave_Click_Err")
+F.Intrinsic.Control.ClearErrors
+V.Local.sError.Declare(String)
+
+V.Local.ssql.Declare(String)
+
+F.Intrinsic.Control.If(V.Global.bUP,=, True)
+	'update...
+	F.Intrinsic.String.Build("Update  GCG_4875_TAX_ID Set  CV_DIGIT = '{0}' , CV_TAX_ID = '{1}' Where  CV_TYPE = '{2}' And CV_ID = '{3}' ",  V.Screen.Form!txtDigit.Text, V.Screen.Form!txtTAX.Text, V.Global.sType, V.Global.sCV, V.Local.ssql)
+	F.ODBC.Connection!con.Execute(V.Local.ssql)
+F.Intrinsic.Control.Else
+	'insert...
+	F.Intrinsic.String.Build("Insert Into GCG_4875_TAX_ID (CV_TYPE, CV_ID, CV_DIGIT, CV_TAX_ID) Values ('{0}', '{1}', '{2}', '{3}') ",  V.Global.sType, V.Global.sCV,V.Screen.Form!txtDigit.Text, V.Screen.Form!txtTAX.Text, V.Local.ssql)
+	F.ODBC.Connection!con.Execute(V.Local.ssql)
+F.Intrinsic.Control.EndIf
+
+'go to unload- close
+Function.Intrinsic.Control.CallSub(form_unload)
+
+F.Intrinsic.Control.ExitSub
+F.Intrinsic.Control.Label("cmdSave_Click_Err")
+F.Intrinsic.Control.If(V.Ambient.ErrorNumber,<>,0)
+	Function.Intrinsic.String.Concat("Project: GCG_4875_TAX_ID.g2u",V.Ambient.Newline,V.Ambient.Newline,"Subroutine: ",V.Ambient.CurrentSubroutine,V.Ambient.NewLine,"Error Occurred ",V.Ambient.ErrorNumber," with description ",V.Ambient.ErrorDescription,V.Local.sError)
+	F.Intrinsic.UI.Msgbox(V.Local.sError)
+	Function.Intrinsic.Control.CallSub(form_unload)
+Function.Intrinsic.Control.EndIf
+Program.Sub.cmdSave_Click.End
+
+Program.Sub.Form_UnLoad.Start
+F.Intrinsic.Control.SetErrorHandler("Form_UnLoad_Err")
+F.Intrinsic.Control.ClearErrors
+V.Local.sError.Declare(String)
+
+Gui.Form..Visible(False)
+F.ODBC.Connection!con.Close
+F.Intrinsic.Control.End
+
+F.Intrinsic.Control.Label("Form_UnLoad_Err")
+F.Intrinsic.Control.If(V.Ambient.ErrorNumber,<>,0)
+	Function.Intrinsic.String.Concat("Project: GCG_4875_TAX_ID.g2u",V.Ambient.Newline,V.Ambient.Newline,"Subroutine: ",V.Ambient.CurrentSubroutine,V.Ambient.NewLine,"Error Occurred ",V.Ambient.ErrorNumber," with description ",V.Ambient.ErrorDescription,V.Local.sError)
+	F.Intrinsic.UI.Msgbox(V.Local.sError)
+	Function.Intrinsic.Control.End
+
+Function.Intrinsic.Control.EndIf
+Program.Sub.Form_UnLoad.End
+
+Program.Sub.Comments.Start
+${$0$}$$}$$}$12:00:00 AM$}$False
+Program.Sub.Comments.End
